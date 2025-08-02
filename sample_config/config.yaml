@@ -1,0 +1,24 @@
+# Simple Example Configuration for Lakehouse-to-RAG Scraper
+# This is a basic configuration for Project Gutenberg
+
+site_url: "https://www.gutenberg.org"
+selectors:
+  title: "h1, .title, .book-title"
+  content: "body"
+  author: ".author, .byline, .book-author"
+  language: ".language, .book-language"
+
+# Advanced settings (optional)
+advanced:
+  rate_limit: true  # enable or disable rate_limit
+  timeout: 45      # request timeout in seconds
+  max_retries: 2 # maximum retry attempts
+  min_content_length: 50  # minimum content length to extract
+  respect_robots: true     # respect robots.txt
+  max_pages: 5          # maximum pages to crawl
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15"
+
+# Usage:
+# python -m scraper --config sample_config/config.yaml --crawl
+# python -m scraper --config sample_config/config.yaml --crawl --max-pages 10
+
