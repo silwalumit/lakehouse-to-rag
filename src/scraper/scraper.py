@@ -18,10 +18,10 @@ from urllib.robotparser import RobotFileParser
 import requests
 from bs4 import BeautifulSoup
 
-from src.config.settings import Settings
-from src.helpers.minio_service import MinioIOService
-from src.scraper.config import ScraperConfig
-from src.scraper.request import RetryingSession
+from config.settings import Settings
+from helpers.minio_service import MinioIOService
+from scraper.config import ScraperConfig
+from scraper.request import RetryingSession
 
 # Configure logging
 logger = logging.getLogger(__name__)

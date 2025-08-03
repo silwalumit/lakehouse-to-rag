@@ -2,8 +2,8 @@ import logging
 import logging.config
 import sys
 
-from src.config.logging import LogSettings
-from src.helpers.logging.formatters import JSONFormatter, PrettyFormatter
+from config.logging import LogSettings
+from helpers.logging.formatters import JSONFormatter, PrettyFormatter
 
 
 def setup_logger(settings: LogSettings):

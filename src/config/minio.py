@@ -1,9 +1,9 @@
 from pydantic import SecretStr
 
-from src.config.base import BaseSettingsModel
+from config.base import BaseSettingsModel
 
 
 class MinioSettings(BaseSettingsModel):
     connect_uri: str
-    access_key: str | None = None
-    secret_key: SecretStr | None = None
+    access_key: str
+    secret_key: SecretStr

@@ -12,8 +12,8 @@ import logging
 import sys
 from typing import Dict
 
-from src.config.settings import Settings
-from src.helpers.logging.logger import setup_logger
+from config.settings import Settings
+from helpers.logging.logger import setup_logger
 
 
 def parse_selectors(selectors_str: str) -> Dict[str, str]:
@@ -123,8 +123,8 @@ def main():
     )
 
     try:
-        from src.scraper.config import ScraperConfig, load_config_from_file
-        from src.scraper.scraper import Scraper
+        from scraper.config import ScraperConfig, load_config_from_file
+        from scraper.scraper import Scraper
 
         # Load configuration
         if args.config:

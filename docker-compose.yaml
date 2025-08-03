@@ -1,0 +1,106 @@
+services:
+  # scraper:
+  #   build: 
+  #     context: .
+  #     dockerfile: Dockerfile.webscraper
+  #   container_name: scraper
+  #   volumes:
+  #     - ./sample_config/config.yaml:/app/config.yaml
+  #     - ./src/helpers:/app/helpers
+  #     - ./src/config:/app/config
+    
+  #   depends_on:
+  #     minio:
+  #       condition: service_healthy
+
+  #   env_file:
+  #     - .env
+  #   # entrypoint: ["sleep", "infinity"]  # Prevents it from running
+  #   entrypoint: ["python", "-m", "scraper"]
+  #   # command: ["--config", "config.yaml", "--max-pages", "10"]
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3  
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow
+    depends_on:
+      # scraper:
+      #   condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__EXECUTOR: "SequentialExecutor"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "sqlite:////opt/airflow/airflow.db"
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: 1
+    volumes:
+      - ./sample_config/config.yaml:/opt/airflow/src/config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./airflow/dags:/opt/airflow/dags
+      # - ./airflow/logs:/opt/airflow/logs
+      # - ./airflow/plugins:/opt/airflow/plugins
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        airflow db migrate && 
+        airflow users create -u admin  -p admin -f admin -l admin -r Admin  -e admin@example.com &&
+        airflow scheduler &
+        exec airflow webserver"
+
+  # chroma:
+  #   image: chromadb/chroma:latest
+  #   container_name: chroma
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./data/chroma:/chroma/.chroma/index
+
+  # fastapi:
+  #   build: ./src/api
+  #   container_name: fastapi
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./src:/app
+  #   environment:
+  #     - MINIO_ENDPOINT=minio:9000
+  #     - CHROMA_ENDPOINT=chroma:8000
+  #     - OLLAMA_ENDPOINT=ollama:11434
+
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./data/ollama:/root/.ollama
+
+volumes:
+  minio_data:
+  # airflow_logs:
+  # airflow_plugins:
+
+# Add networks, depends_on, and other configs as needed for your setup. 
