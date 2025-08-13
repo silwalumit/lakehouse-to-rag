@@ -297,4 +297,11 @@ with DAG(
         python_callable=silver_transform,
         provide_context=True,
     )
-    scrape_task >> bronze >> silver
+
+    gold = PythonOperator(
+        task_id="gold",
+        python_callable=gold_transform,
+        provide_context=True,
+    )
+
+    scrape_task >> bronze >> silver >> gold
