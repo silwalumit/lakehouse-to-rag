@@ -245,7 +245,7 @@ class Scraper:
                     "url": url,
                     "scraped_at": time.time(),
                     "status_code": response.status_code,
-                    "content_length": len(response.content),
+                    # "content_length": len(response.content),
                     **data,
                 }
 

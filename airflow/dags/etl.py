@@ -155,33 +155,99 @@ def transform_bronze_to_silver(
     con.register("bronze", bronze_df)
 
     query = f"""
-    WITH ranked AS (
-        SELECT 
-            *,
-            ROW_NUMBER() OVER (
-                PARTITION BY url
-                ORDER BY processed_at
-            ) AS row_number
-        FROM bronze 
-        WHERE content IS NOT NULL 
-        AND LENGTH(TRIM(content)) >= {min_content_length}
-    )
-    SELECT 
-        url,
-        source,
-        title,
-        LOWER(TRIM(content)) AS content,
-        processed_at,
-        NOW()::TIMESTAMP AS silver_processed_at,
-        content_length,
-        LENGTH(LOWER(TRIM(content))) AS cleaned_length
-    FROM ranked
-    WHERE row_number = 1
+        WITH cleaned AS (
+            SELECT 
+                *,
+                TRIM(
+                    REGEXP_REPLACE(
+                        LOWER(
+                            REGEXP_REPLACE(
+                                content,
+                                '[^\\w\\d\\s\\.,!?;:\\-\\(\\)]',
+                                ' ',
+                                'g'
+                            )
+                        ),
+                        '\\s+',
+                        ' ',
+                        'g'
+                    )
+                ) AS cleaned_content
+            FROM bronze
+            WHERE content IS NOT NULL
+        ),
+        ranked AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY url
+                    ORDER BY processed_at
+                ) AS row_number
+            FROM cleaned
+            WHERE LENGTH(cleaned_content) > {min_content_length}
+        )
+        SELECT
+            url,
+            source,
+            title,
+            cleaned_content AS content,
+            processed_at,
+            NOW()::TIMESTAMP AS silver_processed_at,
+            LENGTH(cleaned_content) AS content_length
+        FROM ranked
+        WHERE row_number = 1
     """
 
     silver_df = con.execute(query).arrow()
+
     con.close()
     return silver_df
+
+
+def _split_content(content: str) -> List[str]:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=200,
+        chunk_overlap=10,
+        add_start_index=True,
+    )
+    return splitter.split_text(content)
+
+
+def gold_transform():
+    """Transform silver data to gold table."""
+    logger.info("Starting gold transform")
+
+    try:
+        # Read from silver Delta table into PyArrow
+        silver_table = DeltaTable(
+            "s3://datalake/silver",
+            storage_options=STORAGE_OPTIONS,
+        )
+        silver_df = silver_table.to_pandas()
+
+        gold_df = silver_df.copy()
+        gold_df["chunks"] = gold_df["content"].apply(_split_content)
+        gold_df = (
+            gold_df.explode("chunks")
+            .rename(columns={"chunks": "chunk"})
+            .reset_index(drop=True)
+        )
+
+        # Write to Delta using delta-rs
+        write_deltalake(
+            "s3://datalake/silver",
+            gold_df,
+            mode="overwrite",
+            storage_options=STORAGE_OPTIONS,
+        )
+
+        logger.info(f"Gold transform completed: {gold_df.num_rows} rows")
+
+    except Exception as e:
+        logger.error(f"Gold transform failed: {e}")
+        raise
 
 
 with DAG(
